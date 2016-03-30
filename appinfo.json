@@ -1,0 +1,23 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "tsbehlman@icloud.com",
+    "enableMultiJS": true,
+    "longName": "Face",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "sdkVersion": "3",
+    "shortName": "Face",
+    "targetPlatforms": [
+        "chalk"
+    ],
+    "uuid": "1fd5eb0d-1e4e-495d-a954-ed9618a1555c",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": true
+    }
+}
