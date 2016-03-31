@@ -1,0 +1,6 @@
+# Ignore waf build tool generated files
+build
+.lock-waf*
+
+# Ignore OS files
+.DS_Store
