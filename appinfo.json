@@ -8,7 +8,13 @@
     "longName": "Face",
     "projectType": "native",
     "resources": {
-        "media": []
+        "media": [
+            {
+                "type": "raw",
+                "name": "MONACO_9",
+                "file": "Monaco9.bin"
+            }
+        ]
     },
     "sdkVersion": "3",
     "shortName": "Face",

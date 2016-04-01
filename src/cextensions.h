@@ -13,3 +13,4 @@
 #define max( a, b ) ( likely( a > b ) ? a : b )
 
 typedef char* String;
+typedef struct tm Time;

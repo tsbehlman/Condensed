@@ -5,7 +5,7 @@
 
 typedef struct {
     uint32_t* bitmap;
-    GPoint size;
+    GSize size;
 } Glyph;
 
 typedef struct {
@@ -27,3 +27,9 @@ void drawGlyph( Glyph* glyph, GBitmap* frameBuffer, GPoint startPosition, GColor
 void drawFontGlyph( Font* font, uint8_t glyphIndex, GBitmap* frameBuffer, GPoint startPosition );
 
 void drawText( String text, Font* font, GBitmap* frameBuffer, GPoint startPosition );
+
+void clear( GBitmap* frameBuffer, GRect area, GColor backgroundColor );
+
+void loadFont( Font* font, uint8_t bitmapID, uint8_t numGlyphs );
+
+void destroyFont( Font* font );
