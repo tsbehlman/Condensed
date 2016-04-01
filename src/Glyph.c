@@ -52,11 +52,12 @@ void drawFontGlyph( Font* font, uint8_t glyphIndex, GBitmap* frameBuffer, GPoint
 }
 
 void drawText( String text, Font* font, GBitmap* frameBuffer, GPoint startPosition ) {
-	const int dx = ( ( font->glyph.size.x * font->scale ) + font->spacing );
+	const int dx = ( ( font->glyph.size.x * font->scale ) + font->letterSpacing );
 	
-	for( int i = 0; text[i] != '\0'; i++ ) {
-		char c = text[ i ] - 32;
-		drawFontGlyph( font, c, frameBuffer, startPosition );
+	for( int i = 0; text[ i ] != '\0'; i++ ) {
+		if( likely( text[ i ] > 32 ) ) {
+			drawFontGlyph( font, text[ i ] - 33, frameBuffer, startPosition );
+		}
 		startPosition.x += dx;
 	}
 }

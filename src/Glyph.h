@@ -11,7 +11,7 @@ typedef struct {
 typedef struct {
     Glyph glyph;
     uint8_t scale;
-    uint8_t spacing;
+    uint8_t letterSpacing;
     GColor color;
 } Font;
 
