@@ -6,9 +6,11 @@ static Layer *windowLayer;
 static uint32_t* monacoBitmap;
 static Font* monaco;
 static GlyphLayer* timeLayer;
+static GlyphLayer* batteryLayer;
 static String timeString;
 static String timeFormat;
 static uint8_t timeFormatLength;
+static String batteryString;
 
 #define BACKGROUND_COLOR GColorWhiteARGB8
 
@@ -23,6 +25,7 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	GBitmap* frameBuffer = graphics_capture_frame_buffer( context );
 	
 	GlyphLayer_draw( timeLayer, frameBuffer, timeString );
+	GlyphLayer_draw( batteryLayer, frameBuffer, batteryString );
 	
 	// Finally, release the framebuffer
 	graphics_release_frame_buffer( context, frameBuffer );
@@ -36,6 +39,13 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 static void tickHandler( Time* timeValue, TimeUnits units_changed ) {
 	strftime( timeString, timeFormatLength, timeFormat, timeValue );
 	
+	// Trigger layer_update_proc
+	layer_mark_dirty( windowLayer );
+}
+
+static void batteryHandler( BatteryChargeState charge_state ) {
+	snprintf( batteryString, 5, "% 3d%%", charge_state.charge_percent );
+
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
 }
@@ -81,25 +91,33 @@ static void init() {
 	monaco->color = GColorBlack;
 	
 	// Initialize GlyphLayer
-	const int dx = ( ( monaco->glyph.size.w * monaco->scale ) + monaco->letterSpacing ) * ( timeFormatLength - 1 );
-	const int dy = ( monaco->glyph.size.h * monaco->scale );
-	const int x = ( 180 - dx ) >> 1;
-	timeLayer = GlyphLayer_create( monaco, (GPoint) { x, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
+	const int dx = ( ( monaco->glyph.size.w * monaco->scale ) + monaco->letterSpacing );
+	const int dy = ( monaco->glyph.size.h * monaco->scale ) + monaco->letterSpacing;
+	timeLayer = GlyphLayer_create( monaco, (GPoint) { ( 180 - dx * ( timeFormatLength - 1 ) ) >> 1, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
+	
+	batteryString = String( 5 );
+	batteryLayer = GlyphLayer_create( monaco, (GPoint) { ( 180 - dx * 4 ) >> 1, 90 + ( dy / 2 ) }, 5, drawBackground );
 	
 	layer_set_update_proc( windowLayer, redrawWindowLayer );
 	
 	tick_timer_service_subscribe( MINUTE_UNIT, tickHandler );
+	battery_state_service_subscribe( batteryHandler );
 	
 	time_t temp = time( NULL );
 	tickHandler( localtime( &temp ), MINUTE_UNIT );
+	batteryHandler( battery_state_service_peek() );
 }
 
 static void deinit() {
+	tick_timer_service_unsubscribe();
+	battery_state_service_unsubscribe();
+	
 	// Destroy the window
 	window_destroy( window );
 	
-	Font_destroy( monaco );
 	GlyphLayer_destroy( timeLayer );
+	GlyphLayer_destroy( batteryLayer );
+	Font_destroy( monaco );
 	free( timeString );
 }
 
