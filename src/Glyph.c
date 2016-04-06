@@ -46,44 +46,52 @@ void drawGlyph( Glyph* glyph, GBitmap* frameBuffer, GPoint startPosition, GColor
 	drawBitmap( glyph, glyph->bitmap, 0, frameBuffer, startPosition, 1, color );
 }
 
-void drawFontGlyph( Font* font, uint8_t glyphIndex, GBitmap* frameBuffer, GPoint startPosition ) {
+Font* Font_create( uint8_t bitmapID, uint8_t numGlyphs, GSize glyphSize ) {
+	Font* font = new( Font );
+	font->glyph.size = glyphSize;
+	ResHandle handle = resource_get_handle( bitmapID );
+	size_t size = ( numGlyphs * glyphSize.w * glyphSize.h + 32 ) >> 3;
+	uint8_t *data = Array( uint8_t, size );
+	resource_load( handle, data, size );
+	font->glyph.bitmap = (uint32_t*) data;
+	return font;
+}
+
+void Font_destroy( Font* font ) {
+	free( font->glyph.bitmap );
+	free( font );
+}
+
+void Font_drawGlyph( Font* font, uint8_t glyphIndex, GBitmap* frameBuffer, GPoint startPosition ) {
 	uint16_t bitIndex = glyphIndex * font->glyph.size.w * font->glyph.size.h;
 	drawBitmap( &font->glyph, font->glyph.bitmap + ( bitIndex >> 5 ), bitIndex & 0b11111, frameBuffer, startPosition, font->scale, font->color );
 }
 
-void drawText( String text, Font* font, GBitmap* frameBuffer, GPoint startPosition ) {
-	const int dx = ( ( font->glyph.size.w * font->scale ) + font->letterSpacing );
+GlyphLayer* GlyphLayer_create( Font* font, GPoint startPosition, uint8_t stringLength, DrawProc drawBackground ) {
+	GlyphLayer* layer = new( GlyphLayer );
+	layer->font = font;
+	layer->startPosition = startPosition;
+	layer->text = String( stringLength );
+	layer->drawBackground = drawBackground;
+	return layer;
+}
+
+void GlyphLayer_destroy( GlyphLayer* layer ) {
+	free( layer->text );
+	free( layer );
+}
+
+void GlyphLayer_draw( GlyphLayer* layer, GBitmap* frameBuffer, String text ) {
+	GPoint startPosition = layer->startPosition;
+	const GSize glyphSize = { layer->font->glyph.size.w * layer->font->scale, layer->font->glyph.size.h * layer->font->scale };
+	const int dx = ( glyphSize.w + layer->font->letterSpacing );
 	
 	for( int i = 0; text[ i ] != '\0'; i++ ) {
-		if( text[ i ] > 32 ) {
-			drawFontGlyph( font, text[ i ] - 33, frameBuffer, startPosition );
+		if( text[ i ] > 32 && layer->text[ i ] != text[ i ] ) {
+			layer->drawBackground( frameBuffer, (GRect) { startPosition, glyphSize } );
+			layer->text[ i ] = text[ i ];
+			Font_drawGlyph( layer->font, text[ i ] - 33, frameBuffer, startPosition );
 		}
 		startPosition.x += dx;
 	}
-}
-
-void clear( GBitmap* frameBuffer, GRect area, GColor backgroundColor ) {
-	uint16_t y = area.origin.y;
-	const uint16_t maxY = y + area.size.h;
-	
-	GBitmapDataRowInfo rowInfo = gbitmap_get_data_row_info( frameBuffer, y );
-	
-	memset( &rowInfo.data[ area.origin.x ], backgroundColor.argb, area.size.w );
-	
-	for( y++; y < maxY; y++ ) {
-		GBitmapDataRowInfo nextRowInfo = gbitmap_get_data_row_info( frameBuffer, y );
-		memcpy( &nextRowInfo.data[ area.origin.x ], &rowInfo.data[ area.origin.x + area.size.w ], area.size.w );
-	}
-}
-
-void loadFont( Font* font, uint8_t bitmapID, uint8_t numGlyphs ) {
-	ResHandle handle = resource_get_handle( bitmapID );
-	size_t size = ( numGlyphs * font->glyph.size.w * font->glyph.size.h + 32 ) >> 3;
-	uint8_t *data = array( uint8_t, size );
-	resource_load( handle, data, size );
-	font->glyph.bitmap = (uint32_t*) data;
-}
-
-void destroyFont( Font* font ) {
-	free( font->glyph.bitmap );
 }

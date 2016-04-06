@@ -15,6 +15,15 @@ typedef struct {
     GColor color;
 } Font;
 
+typedef void ( *DrawProc )( GBitmap* frameBuffer, GRect area );
+
+typedef struct {
+    Font* font;
+    GPoint startPosition;
+    String text;
+    DrawProc drawBackground;
+} GlyphLayer;
+
 /**
  * Draws the given glyph on the given frame buffer at the given position.
  * @param glyph The glyph to draw
@@ -24,12 +33,14 @@ typedef struct {
  */
 void drawGlyph( Glyph* glyph, GBitmap* frameBuffer, GPoint startPosition, GColor color );
 
-void drawFontGlyph( Font* font, uint8_t glyphIndex, GBitmap* frameBuffer, GPoint startPosition );
+void Font_drawGlyph( Font* font, uint8_t glyphIndex, GBitmap* frameBuffer, GPoint startPosition );
 
-void drawText( String text, Font* font, GBitmap* frameBuffer, GPoint startPosition );
+Font* Font_create( uint8_t bitmapID, uint8_t numGlyphs, GSize glyphSize );
 
-void clear( GBitmap* frameBuffer, GRect area, GColor backgroundColor );
+void Font_destroy( Font* font );
 
-void loadFont( Font* font, uint8_t bitmapID, uint8_t numGlyphs );
+GlyphLayer* GlyphLayer_create( Font* font, GPoint startPosition, uint8_t stringLength, DrawProc drawBackground );
 
-void destroyFont( Font* font );
+void GlyphLayer_destroy( GlyphLayer* layer );
+
+void GlyphLayer_draw( GlyphLayer* layer, GBitmap* frameBuffer, String text );

@@ -7,7 +7,9 @@
 #define until( condition ) while( !( likely( condition ) ) )
 
 #define new( type ) ( (type*) malloc( sizeof(type) ) )
-#define array( type, number ) ( (type*) malloc( number * sizeof(type) ) )
+#define Array( type, number ) ( (type*) malloc( number * sizeof(type) ) )
+
+#define String( length ) ( (String) calloc( length, sizeof(char) ) )
 
 #define min( a, b ) ( likely( a < b ) ? a : b )
 #define max( a, b ) ( likely( a > b ) ? a : b )
