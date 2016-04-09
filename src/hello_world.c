@@ -8,7 +8,6 @@ static GlyphFont monaco;
 static GlyphLayer* timeLayer;
 static GlyphLayer* batteryLayer;
 static String timeString;
-static String timeFormat;
 static uint8_t timeFormatLength;
 static String batteryString;
 
@@ -36,8 +35,43 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	#endif
 }
 
-static void tickHandler( Time* timeValue, TimeUnits units_changed ) {
-	strftime( timeString, timeFormatLength, timeFormat, timeValue );
+static void setTwoDigitNumber( uint8_t number, String outputString ) {
+	if( number >= 10 ) {
+		outputString[ 0 ] = 48 + ( number / 10 );
+		number = number % 10;
+	}
+	else {
+		outputString[ 0 ] = '0';
+	}
+	outputString[ 1 ] = 48 + number;
+}
+
+static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
+	switch( unitsChanged ) {
+		case HOUR_UNIT: {
+			uint8_t hour = timeValue->tm_hour;
+			if( !clock_is_24h_style() ) {
+				if( hour < 12 ) {
+					timeString[ 5 ] = 'A';
+					if( hour == 0 ) {
+						hour = 12;
+					}
+				}
+				else {
+					hour -= 12;
+					timeString[ 5 ] = 'P';
+				}
+			}
+			
+			setTwoDigitNumber( hour, timeString );
+		}
+		case MINUTE_UNIT: {
+			setTwoDigitNumber( timeValue->tm_min, timeString + 3 );
+		}
+		default: {
+			break;
+		}
+	}
 	
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
@@ -79,17 +113,16 @@ static void init() {
 	
 	// Initialize time display format
 	if( clock_is_24h_style() ) {
-		timeFormat = "%H:%M";
-		timeFormatLength = 6;
+		timeString = "00:00";
+		timeFormatLength = 5;
 	}
 	else {
-		timeFormat = "%I:%M%p";
-		timeFormatLength = 8;
+		timeString = "00:00AM";
+		timeFormatLength = 7;
 	}
-	timeString = String( timeFormatLength );
 	
 	// Initialize battery display format
-	batteryString = String( 5 );
+	batteryString = "000%";
 	
 	// Initialize font
 	monacoGlyphs = GlyphSet_create( RESOURCE_ID_MONACO_9, 48, (GSize) { 5, 9 } );
@@ -105,7 +138,7 @@ static void init() {
 	const int dx = ( ( monaco.glyphSet->size.w * monaco.scale ) + monaco.letterSpacing );
 	const int dy = ( monaco.glyphSet->size.h * monaco.scale ) + monaco.letterSpacing;
 	
-	timeLayer = GlyphLayer_create( &monaco, (GPoint) { ( 180 - ( dx * ( timeFormatLength - 1 ) - monaco.letterSpacing ) ) >> 1, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
+	timeLayer = GlyphLayer_create( &monaco, (GPoint) { ( 180 - ( dx * ( timeFormatLength ) - monaco.letterSpacing ) ) >> 1, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
 	
 	batteryLayer = GlyphLayer_create( &monaco, (GPoint) { ( 180 - ( dx * 4 - monaco.letterSpacing ) ) >> 1, 90 + ( dy / 2 ) }, 5, drawBackground );
 	
@@ -132,8 +165,6 @@ static void deinit() {
 	GlyphLayer_destroy( timeLayer );
 	GlyphLayer_destroy( batteryLayer );
 	GlyphSet_destroy( monacoGlyphs );
-	free( timeString );
-	free( batteryString );
 }
 
 int main() {
