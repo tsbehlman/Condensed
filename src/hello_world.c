@@ -3,31 +3,66 @@
 
 static Window *window;
 static Layer *windowLayer;
-static GlyphSet* monacoGlyphs;
-static GlyphFont monaco;
+static GlyphSet* universGlyphs;
+static GlyphFont univers;
 static GlyphLayer* timeLayer;
-static GlyphLayer* batteryLayer;
 static String timeString;
 static uint8_t timeFormatLength;
-static String batteryString;
+static int32_t drawnBatteryAngle = 0;
+static int32_t batteryAngle;
+static bool firstRender = true;
 
-#define BACKGROUND_COLOR GColorWhiteARGB8
+#define screenRect ((GRect) { (GPoint) { 0, 0 }, (GSize) { 180, 180 } })
+
+#define BACKGROUND_COLOR GColorBlack
+#define FOREGROUND_COLOR GColorWhite
+#define BATTERY_RING_THICKNESS 8
 
 //#define BENCHMARK
+
+static void drawBackground( GBitmap* frameBuffer, GRect area ) {
+	uint16_t y = area.origin.y;
+	const uint16_t maxY = y + area.size.h;
+
+	for( ; y < maxY; y++ ) {
+		GBitmapDataRowInfo nextRowInfo = gbitmap_get_data_row_info( frameBuffer, y );
+		uint8_t startX = max( area.origin.x, nextRowInfo.min_x );
+		uint8_t endX = min( area.origin.x + area.size.w, nextRowInfo.max_x + 1 );
+		memset( &nextRowInfo.data[ startX ], BACKGROUND_COLOR.argb, endX - startX );
+	}
+}
 
 static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	#ifdef BENCHMARK
 		uint16_t start = time_ms(NULL, NULL);
 	#endif
 	
+	graphics_context_set_antialiased( context, false );
+	
 	// Get the framebuffer
 	GBitmap* frameBuffer = graphics_capture_frame_buffer( context );
 	
+	if( firstRender ) {
+		drawBackground( frameBuffer, screenRect );
+		firstRender = false;
+	}
+	
 	GlyphLayer_draw( timeLayer, frameBuffer, timeString );
-	GlyphLayer_draw( batteryLayer, frameBuffer, batteryString );
 	
 	// Release the framebuffer
 	graphics_release_frame_buffer( context, frameBuffer );
+	
+	// Draw the battery ring if necessary
+	if ( drawnBatteryAngle < batteryAngle ) {
+		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
+		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, 0, batteryAngle );
+		drawnBatteryAngle = batteryAngle;
+	}
+	else if( drawnBatteryAngle > batteryAngle ) {
+		graphics_context_set_fill_color( context, BACKGROUND_COLOR );
+		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, batteryAngle, drawnBatteryAngle );
+		drawnBatteryAngle = batteryAngle;
+	}
 	
 	#ifdef BENCHMARK
 		uint16_t finish = time_ms(NULL, NULL);
@@ -47,60 +82,43 @@ static void setTwoDigitNumber( uint8_t number, String outputString ) {
 }
 
 static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
-	switch( unitsChanged ) {
-		case HOUR_UNIT: {
-			uint8_t hour = timeValue->tm_hour;
-			if( !clock_is_24h_style() ) {
-				if( hour < 12 ) {
-					timeString[ 5 ] = 'A';
-					if( hour == 0 ) {
-						hour = 12;
-					}
-				}
-				else {
-					hour -= 12;
-					timeString[ 5 ] = 'P';
+	if( unitsChanged & HOUR_UNIT ) {
+		uint8_t hour = timeValue->tm_hour;
+		if( !clock_is_24h_style() ) {
+			if( hour < 12 ) {
+				if( hour == 0 ) {
+					hour = 12;
 				}
 			}
-			
-			setTwoDigitNumber( hour, timeString );
+			else {
+				hour -= 12;
+			}
 		}
-		case MINUTE_UNIT: {
-			setTwoDigitNumber( timeValue->tm_min, timeString + 3 );
-		}
-		default: {
-			break;
-		}
+		
+		setTwoDigitNumber( hour, timeString );
 	}
-	
+	if( unitsChanged & MINUTE_UNIT ) {
+		setTwoDigitNumber( timeValue->tm_min, timeString + 3 );
+	}
+		
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
 }
 
 static void batteryHandler( BatteryChargeState charge_state ) {
-	snprintf( batteryString, 5, "% 3d%%", charge_state.charge_percent );
-
+	batteryAngle = TRIG_MAX_ANGLE * 100 / 100;
+	
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
 }
 
-static void drawBackground( GBitmap* frameBuffer, GRect area ) {
-	uint16_t y = area.origin.y;
-	
-	GBitmapDataRowInfo rowInfo = gbitmap_get_data_row_info( frameBuffer, y );
-	
-	memset( &rowInfo.data[ area.origin.x ], BACKGROUND_COLOR, area.size.w );
-	
-	const uint16_t maxY = y + area.size.h;
-	
-	for( y++; y < maxY; y++ ) {
-		GBitmapDataRowInfo nextRowInfo = gbitmap_get_data_row_info( frameBuffer, y );
-		memcpy( &nextRowInfo.data[ area.origin.x ], &rowInfo.data[ area.origin.x ], area.size.w );
-	}
-}
-
 static uint8_t asciiNonWhitespaceToGlyphIndex( char codePoint ) {
-	return codePoint - 33;
+	if( codePoint < 48 || codePoint > 58 ) {
+		return 255;
+	}
+	else {
+		return codePoint - 48;
+	}
 }
 
 static void init() {
@@ -110,37 +128,26 @@ static void init() {
 	
 	// Push the window, setting the window animation to 'true'
 	window_stack_push( window, true );
-	
+		
 	// Initialize time display format
-	if( clock_is_24h_style() ) {
-		timeString = "00:00";
-		timeFormatLength = 5;
-	}
-	else {
-		timeString = "00:00AM";
-		timeFormatLength = 7;
-	}
-	
-	// Initialize battery display format
-	batteryString = "000%";
+	timeString = "00:00";
+	timeFormatLength = 5;
 	
 	// Initialize font
-	monacoGlyphs = GlyphSet_create( RESOURCE_ID_MONACO_9, 48, (GSize) { 5, 9 } );
-	monaco = (GlyphFont) {
-		.glyphSet = monacoGlyphs,
-		.scale = 3,
+	universGlyphs = GlyphSet_create( RESOURCE_ID_UNIVERS, 11, (GSize) { 18, 80 } );
+	univers = (GlyphFont) {
+		.glyphSet = universGlyphs,
+		.scale = 1,
 		.letterSpacing = 3,
-		.color = GColorBlack,
+		.color = FOREGROUND_COLOR,
 		.glyphForCharacter = asciiNonWhitespaceToGlyphIndex
 	};
 	
 	// Initialize GlyphLayers
-	const int dx = ( ( monaco.glyphSet->size.w * monaco.scale ) + monaco.letterSpacing );
-	const int dy = ( monaco.glyphSet->size.h * monaco.scale ) + monaco.letterSpacing;
+	const int dx = ( ( univers.glyphSet->size.w * univers.scale ) + univers.letterSpacing );
+	const int dy = ( univers.glyphSet->size.h * univers.scale ) + univers.letterSpacing;
 	
-	timeLayer = GlyphLayer_create( &monaco, (GPoint) { ( 180 - ( dx * ( timeFormatLength ) - monaco.letterSpacing ) ) >> 1, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
-	
-	batteryLayer = GlyphLayer_create( &monaco, (GPoint) { ( 180 - ( dx * 4 - monaco.letterSpacing ) ) >> 1, 90 + ( dy / 2 ) }, 5, drawBackground );
+	timeLayer = GlyphLayer_create( &univers, (GPoint) { ( 180 - ( dx * ( timeFormatLength ) - univers.letterSpacing ) ) >> 1, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
 	
 	// Define draw procedure
 	layer_set_update_proc( windowLayer, redrawWindowLayer );
@@ -151,7 +158,7 @@ static void init() {
 	
 	// Draw initial display
 	time_t temp = time( NULL );
-	tickHandler( localtime( &temp ), HOUR_UNIT );
+	tickHandler( localtime( &temp ), HOUR_UNIT | MINUTE_UNIT );
 	batteryHandler( battery_state_service_peek() );
 }
 
@@ -163,8 +170,7 @@ static void deinit() {
 	window_destroy( window );
 	
 	GlyphLayer_destroy( timeLayer );
-	GlyphLayer_destroy( batteryLayer );
-	GlyphSet_destroy( monacoGlyphs );
+	GlyphSet_destroy( universGlyphs );
 }
 
 int main() {
