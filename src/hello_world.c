@@ -55,7 +55,7 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	// Draw the battery ring if necessary
 	if ( drawnBatteryAngle < batteryAngle ) {
 		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
-		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, 0, batteryAngle );
+		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
 		drawnBatteryAngle = batteryAngle;
 	}
 	else if( drawnBatteryAngle > batteryAngle ) {
