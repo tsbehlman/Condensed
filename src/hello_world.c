@@ -85,13 +85,11 @@ static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
 	if( unitsChanged & HOUR_UNIT ) {
 		uint8_t hour = timeValue->tm_hour;
 		if( !clock_is_24h_style() ) {
-			if( hour < 12 ) {
-				if( hour == 0 ) {
-					hour = 12;
-				}
-			}
-			else {
+			if( hour > 12 ) {
 				hour -= 12;
+			}
+			else if( hour == 0 ) {
+				hour = 12;
 			}
 		}
 		
