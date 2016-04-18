@@ -104,7 +104,7 @@ static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
 }
 
 static void batteryHandler( BatteryChargeState charge_state ) {
-	batteryAngle = TRIG_MAX_ANGLE * 100 / 100;
+	batteryAngle = TRIG_MAX_ANGLE * charge_state.charge_percent / 100;
 	
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
@@ -136,7 +136,7 @@ static void init() {
 	univers = (GlyphFont) {
 		.glyphSet = universGlyphs,
 		.scale = 1,
-		.letterSpacing = 3,
+		.letterSpacing = 5,
 		.color = FOREGROUND_COLOR,
 		.glyphForCharacter = asciiNonWhitespaceToGlyphIndex
 	};
