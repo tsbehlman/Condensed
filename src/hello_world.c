@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "Glyph.h"
 
-#define BENCHMARK
+//#define BENCHMARK
 #ifdef BENCHMARK
 	#include "benchmark.h"
 #endif
@@ -12,16 +12,20 @@ static GlyphSet* universGlyphs;
 static GlyphFont univers;
 static GlyphLayer* timeLayer;
 static String timeString;
-static uint8_t timeFormatLength;
 static int32_t drawnBatteryAngle = 0;
 static int32_t batteryAngle;
 static bool firstRender = true;
 
-#define screenRect ((GRect) { (GPoint) { 0, 0 }, (GSize) { 180, 180 } })
+#define SCREEN_RECT ((GRect) { (GPoint) { 0, 0 }, (GSize) { 180, 180 } })
 
 #define BACKGROUND_COLOR GColorBlack
 #define FOREGROUND_COLOR GColorWhite
 #define BATTERY_RING_THICKNESS 8
+
+#define TIME_FORMAT "00:00"
+#define TIME_FORMAT_HOUR_POSITION 0
+#define TIME_FORMAT_MINUTE_POSITION 3
+#define TIME_FORMAT_LENGTH 5
 
 static void drawBackground( GBitmap* frameBuffer, GRect area ) {
 	uint16_t y = area.origin.y;
@@ -39,34 +43,39 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	#ifdef BENCHMARK
 		startTimer();
 	#endif
-	
+
+	// Disable antialiasing in order to draw and erase the battery ring cleanly
 	graphics_context_set_antialiased( context, false );
-	
+
 	// Get the framebuffer
 	GBitmap* frameBuffer = graphics_capture_frame_buffer( context );
-	
+
+	// Draw the background if necessary
 	if( firstRender ) {
-		drawBackground( frameBuffer, screenRect );
+		drawBackground( frameBuffer, SCREEN_RECT );
 		firstRender = false;
 	}
-	
+
+	// Update the time display
 	GlyphLayer_draw( timeLayer, frameBuffer, timeString );
-	
+
 	// Release the framebuffer
 	graphics_release_frame_buffer( context, frameBuffer );
-	
-	// Draw the battery ring if necessary
-	if( drawnBatteryAngle < batteryAngle ) {
-		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
-		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
-		drawnBatteryAngle = batteryAngle;
-	}
-	else if( drawnBatteryAngle > batteryAngle ) {
+
+	// Update the battery ring if necessary
+	if( batteryAngle < drawnBatteryAngle ) {
+		// Battery has drained, erase a segment of the ring
 		graphics_context_set_fill_color( context, BACKGROUND_COLOR );
-		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, batteryAngle, drawnBatteryAngle );
+		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, batteryAngle, drawnBatteryAngle );
 		drawnBatteryAngle = batteryAngle;
 	}
-	
+	else if( batteryAngle > drawnBatteryAngle ) {
+		// Battery has charged, add a segment to the ring
+		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
+		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
+		drawnBatteryAngle = batteryAngle;
+	}
+
 	#ifdef BENCHMARK
 		APP_LOG(APP_LOG_LEVEL_INFO, "Frame time: %lu", endTimer());
 	#endif
@@ -95,25 +104,25 @@ static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
 				hour = 12;
 			}
 		}
-		
-		setTwoDigitNumber( hour, timeString );
+
+		setTwoDigitNumber( hour, timeString + TIME_FORMAT_HOUR_POSITION );
 	}
 	if( unitsChanged & MINUTE_UNIT ) {
-		setTwoDigitNumber( timeValue->tm_min, timeString + 3 );
+		setTwoDigitNumber( timeValue->tm_min, timeString + TIME_FORMAT_MINUTE_POSITION );
 	}
-		
+
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
 }
 
 static void batteryHandler( BatteryChargeState charge_state ) {
 	batteryAngle = TRIG_MAX_ANGLE * charge_state.charge_percent / 100;
-	
+
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
 }
 
-static uint8_t asciiNonWhitespaceToGlyphIndex( char codePoint ) {
+static uint8_t asciiToGlyphIndex( char codePoint ) {
 	if( codePoint < 48 || codePoint > 58 ) {
 		return 255;
 	}
@@ -126,14 +135,13 @@ static void init() {
 	// Create a window and get information about the window
 	window = window_create();
 	windowLayer = window_get_root_layer( window );
-	
+
 	// Push the window, setting the window animation to 'true'
 	window_stack_push( window, true );
-		
+
 	// Initialize time display format
 	timeString = "00:00";
-	timeFormatLength = 5;
-	
+
 	// Initialize font
 	universGlyphs = GlyphSet_create( RESOURCE_ID_UNIVERS, 11, (GSize) { 18, 80 } );
 	univers = (GlyphFont) {
@@ -141,22 +149,22 @@ static void init() {
 		.scale = 1,
 		.letterSpacing = 5,
 		.color = FOREGROUND_COLOR,
-		.glyphForCharacter = asciiNonWhitespaceToGlyphIndex
+		.glyphForCharacter = asciiToGlyphIndex
 	};
-	
+
 	// Initialize GlyphLayers
-	const int dx = ( ( univers.glyphSet->size.w * univers.scale ) + univers.letterSpacing );
-	const int dy = ( univers.glyphSet->size.h * univers.scale ) + univers.letterSpacing;
-	
-	timeLayer = GlyphLayer_create( &univers, (GPoint) { ( 180 - ( dx * ( timeFormatLength ) - univers.letterSpacing ) ) >> 1, 90 - ( dy / 2 ) }, timeFormatLength, drawBackground );
-	
+	const int dx = ( univers.glyphSet->size.w * univers.scale ) + univers.letterSpacing;
+	const int dy = ( univers.glyphSet->size.h * univers.scale );
+
+	timeLayer = GlyphLayer_create( &univers, (GPoint) { ( 180 - ( dx * TIME_FORMAT_LENGTH - univers.letterSpacing ) ) >> 1, 90 - ( dy / 2 ) }, TIME_FORMAT_LENGTH, drawBackground );
+
 	// Define draw procedure
 	layer_set_update_proc( windowLayer, redrawWindowLayer );
-	
+
 	// Subscribe to services
 	tick_timer_service_subscribe( MINUTE_UNIT, tickHandler );
 	battery_state_service_subscribe( batteryHandler );
-	
+
 	// Draw initial display
 	time_t temp = time( NULL );
 	tickHandler( localtime( &temp ), HOUR_UNIT | MINUTE_UNIT );
@@ -164,12 +172,12 @@ static void init() {
 }
 
 static void deinit() {
+	// Unsubscribe from services
 	tick_timer_service_unsubscribe();
 	battery_state_service_unsubscribe();
-	
-	// Destroy the window
+
+	// Free memory
 	window_destroy( window );
-	
 	GlyphLayer_destroy( timeLayer );
 	GlyphSet_destroy( universGlyphs );
 }
