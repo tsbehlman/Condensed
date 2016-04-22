@@ -1,6 +1,11 @@
 #include <pebble.h>
 #include "Glyph.h"
 
+#define BENCHMARK
+#ifdef BENCHMARK
+	#include "benchmark.h"
+#endif
+
 static Window *window;
 static Layer *windowLayer;
 static GlyphSet* universGlyphs;
@@ -18,8 +23,6 @@ static bool firstRender = true;
 #define FOREGROUND_COLOR GColorWhite
 #define BATTERY_RING_THICKNESS 8
 
-//#define BENCHMARK
-
 static void drawBackground( GBitmap* frameBuffer, GRect area ) {
 	uint16_t y = area.origin.y;
 	const uint16_t maxY = y + area.size.h;
@@ -34,7 +37,7 @@ static void drawBackground( GBitmap* frameBuffer, GRect area ) {
 
 static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	#ifdef BENCHMARK
-		uint16_t start = time_ms(NULL, NULL);
+		startTimer();
 	#endif
 	
 	graphics_context_set_antialiased( context, false );
@@ -53,7 +56,7 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	graphics_release_frame_buffer( context, frameBuffer );
 	
 	// Draw the battery ring if necessary
-	if ( drawnBatteryAngle < batteryAngle ) {
+	if( drawnBatteryAngle < batteryAngle ) {
 		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
 		graphics_fill_radial( context, screenRect, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
 		drawnBatteryAngle = batteryAngle;
@@ -65,20 +68,20 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	}
 	
 	#ifdef BENCHMARK
-		uint16_t finish = time_ms(NULL, NULL);
-		APP_LOG(APP_LOG_LEVEL_INFO, "Frame time: %d", (int) finish - start);
+		APP_LOG(APP_LOG_LEVEL_INFO, "Frame time: %lu", endTimer());
 	#endif
 }
 
 static void setTwoDigitNumber( uint8_t number, String outputString ) {
 	if( number >= 10 ) {
-		outputString[ 0 ] = 48 + ( number / 10 );
-		number = number % 10;
+		div_t division = div( number, 10 );
+		outputString[ 0 ] = 48 | division.quot;
+		number = division.rem;
 	}
 	else {
 		outputString[ 0 ] = '0';
 	}
-	outputString[ 1 ] = 48 + number;
+	outputString[ 1 ] = 48 | number;
 }
 
 static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
