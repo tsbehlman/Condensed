@@ -1,6 +1,8 @@
 #include <pebble.h>
 #include "Glyph.h"
 
+//#define PROFILE
+
 //#define BENCHMARK
 #ifdef BENCHMARK
 	#include "benchmark.h"
@@ -28,6 +30,10 @@ static bool firstRender = true;
 #define TIME_FORMAT_LENGTH 5
 
 static void drawBackground( GBitmap* frameBuffer, GRect area ) {
+	#ifdef PROFILE
+		APP_LOG(APP_LOG_LEVEL_INFO, "Drawing background of %dx%d at %d,%d", area.size.w, area.size.h, area.origin.x, area.origin.y);
+	#endif
+	
 	uint16_t y = area.origin.y;
 	const uint16_t maxY = y + area.size.h;
 	
@@ -40,10 +46,13 @@ static void drawBackground( GBitmap* frameBuffer, GRect area ) {
 }
 
 static void redrawWindowLayer( Layer *layer, GContext *context ) {
-	#ifdef BENCHMARK
+	#ifdef PROFILE
 		time_t temp = time( NULL );
 		Time* tm = localtime( &temp );
 		APP_LOG(APP_LOG_LEVEL_INFO, "Screen redraw at : %02d:%02d:%02d", tm->tm_hour, tm->tm_min, tm->tm_sec);
+	#endif
+	
+	#ifdef BENCHMARK
 		startTimer();
 	#endif
 	
@@ -55,6 +64,9 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	
 	// Draw the background if necessary
 	if( firstRender ) {
+		#ifdef PROFILE
+			APP_LOG(APP_LOG_LEVEL_INFO, "Initial render");
+		#endif
 		drawBackground( frameBuffer, SCREEN_RECT );
 		firstRender = false;
 	}
@@ -71,12 +83,20 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 		graphics_context_set_fill_color( context, BACKGROUND_COLOR );
 		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, batteryAngle, drawnBatteryAngle );
 		drawnBatteryAngle = batteryAngle;
+		
+		#ifdef PROFILE
+			APP_LOG(APP_LOG_LEVEL_INFO, "Clearing battery ring");
+		#endif
 	}
 	else if( batteryAngle > drawnBatteryAngle ) {
 		// Battery has charged, add a segment to the ring
 		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
 		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
 		drawnBatteryAngle = batteryAngle;
+		
+		#ifdef PROFILE
+			APP_LOG(APP_LOG_LEVEL_INFO, "Drawing battery ring");
+		#endif
 	}
 	
 	#ifdef BENCHMARK
