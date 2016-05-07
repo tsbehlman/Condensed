@@ -5,7 +5,7 @@
     ],
     "companyName": "tsbehlman@icloud.com",
     "enableMultiJS": true,
-    "longName": "Face",
+    "longName": "Condensed",
     "projectType": "native",
     "resources": {
         "media": [
@@ -17,7 +17,7 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Face",
+    "shortName": "Condensed",
     "targetPlatforms": [
         "chalk"
     ],
