@@ -8,6 +8,11 @@
 	#include "benchmark.h"
 #endif
 
+typedef struct {
+	GColor backgroundColor;
+	GColor foregroundColor;
+} Settings;
+
 static Window *window;
 static Layer *windowLayer;
 static GlyphSet* universGlyphs;
@@ -17,11 +22,14 @@ static String timeString;
 static int32_t drawnBatteryAngle = 0;
 static int32_t batteryAngle;
 static bool firstRender = true;
+static Settings settings;
+
+#define SETTINGS_KEY 3
+#define APPKEY_BACKGROUND_COLOR 0
+#define APPKEY_FOREGROUND_COLOR 1
 
 #define SCREEN_RECT ((GRect) { (GPoint) { 0, 0 }, (GSize) { 180, 180 } })
 
-#define BACKGROUND_COLOR GColorBlack
-#define FOREGROUND_COLOR GColorWhite
 #define BATTERY_RING_THICKNESS 8
 
 #define TIME_FORMAT "00:00"
@@ -41,7 +49,7 @@ static void drawBackground( GBitmap* frameBuffer, GRect area ) {
 		GBitmapDataRowInfo nextRowInfo = gbitmap_get_data_row_info( frameBuffer, y );
 		uint8_t startX = max( area.origin.x, nextRowInfo.min_x );
 		uint8_t endX = min( area.origin.x + area.size.w, nextRowInfo.max_x + 1 );
-		memset( &nextRowInfo.data[ startX ], BACKGROUND_COLOR.argb, endX - startX );
+		memset( &nextRowInfo.data[ startX ], settings.backgroundColor.argb, endX - startX );
 	}
 }
 
@@ -80,7 +88,7 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	// Update the battery ring if necessary
 	if( batteryAngle < drawnBatteryAngle ) {
 		// Battery has drained, erase a segment of the ring
-		graphics_context_set_fill_color( context, BACKGROUND_COLOR );
+		graphics_context_set_fill_color( context, settings.backgroundColor );
 		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, batteryAngle, drawnBatteryAngle );
 		drawnBatteryAngle = batteryAngle;
 		
@@ -90,7 +98,7 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	}
 	else if( batteryAngle > drawnBatteryAngle ) {
 		// Battery has charged, add a segment to the ring
-		graphics_context_set_fill_color( context, FOREGROUND_COLOR );
+		graphics_context_set_fill_color( context, settings.foregroundColor );
 		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
 		drawnBatteryAngle = batteryAngle;
 		
@@ -165,10 +173,63 @@ static uint8_t asciiToGlyphIndex( char codePoint ) {
 	}
 }
 
+static void inbox_received_handler( DictionaryIterator* iter, void* context ) {
+	#ifdef PROFILE
+		APP_LOG(APP_LOG_LEVEL_INFO, "Received a message");
+	#endif
+	
+	Tuple* tuple = dict_read_first( iter );
+	
+	while( tuple != NULL ) {
+		switch( tuple->key ) {
+		case APPKEY_BACKGROUND_COLOR:
+			settings.backgroundColor = GColorFromHEX( tuple->value->int32 );
+			#ifdef PROFILE
+				APP_LOG(APP_LOG_LEVEL_INFO, "Received a bg color %d", settings.backgroundColor.argb);
+			#endif
+			break;
+		case APPKEY_FOREGROUND_COLOR:
+			settings.foregroundColor = GColorFromHEX( tuple->value->int32 );
+			break;
+		default:
+			#ifdef PROFILE
+				APP_LOG(APP_LOG_LEVEL_INFO, "Received unknown tuple %lu", tuple->key);
+			#endif
+			break;
+		}
+		
+		tuple = dict_read_next( iter );
+	}
+	
+	persist_write_data( SETTINGS_KEY, &settings, sizeof(Settings) );
+	
+	// Apply the color change elsewhere as necessary
+	univers.color = settings.foregroundColor;
+	
+	// Redraw the entire watch face
+	firstRender = true;
+	drawnBatteryAngle = 0;
+	GlyphLayer_reset( timeLayer );
+	
+	// Trigger layer_update_proc
+	layer_mark_dirty( windowLayer );
+}
+
+
 static void init() {
 	// Create a window and get information about the window
 	window = window_create();
 	windowLayer = window_get_root_layer( window );
+	
+	if( persist_exists( SETTINGS_KEY ) ) {
+		persist_read_data( SETTINGS_KEY, &settings, sizeof(Settings));
+	}
+	else {
+		settings = (Settings) {
+			.backgroundColor = GColorBlack,
+			.foregroundColor = GColorWhite
+		};
+	}
 	
 	// Push the window, setting the window animation to 'true'
 	window_stack_push( window, true );
@@ -182,7 +243,7 @@ static void init() {
 		.glyphSet = universGlyphs,
 		.scale = 1,
 		.letterSpacing = 5,
-		.color = FOREGROUND_COLOR,
+		.color = settings.foregroundColor,
 		.glyphForCharacter = asciiToGlyphIndex
 	};
 	
@@ -203,6 +264,9 @@ static void init() {
 	// Subscribe to services
 	tick_timer_service_subscribe( MINUTE_UNIT, tickHandler );
 	battery_state_service_subscribe( batteryHandler );
+	
+	app_message_register_inbox_received( inbox_received_handler );
+	app_message_open( dict_calc_buffer_size( 2, sizeof( uint32_t ), sizeof( uint32_t ) ), 0 );
 }
 
 static void deinit() {

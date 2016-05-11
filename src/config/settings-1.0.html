@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Condensed Configuration</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body, h1, form, input, button {
+				margin: 0;
+			}
+			html {
+				font-family: Helvetica, sans-serif;
+				font-size: 16px;
+				line-height: 1.25em;
+			}
+			form {
+				padding: 1em;
+			}
+			form > * + * {
+				margin-top: 1rem;
+			}
+			label {
+				display: block;
+			}
+			input, button {
+				-webkit-appearance: none;
+				border: 1px solid #000;
+				padding: 0 .5rem;
+				line-height: 3rem;
+				height: 3rem;
+				width: 100%;
+				font-family: inherit;
+				font-size: 1.5rem;
+				color: inherit;
+				border-radius: 0.1875rem;
+			}
+			input {
+				display: block;
+				background-color: #fff;
+				margin-top: .25rem;
+			}
+			button {
+				color: #fff;
+				background-color: #000;
+			}
+		</style>
+	</head>
+	<body>
+		<form>
+			<h1>Condensed</h1>
+			<label>
+				Background Color
+				<input name="backgroundColor" type="text">
+			</label>
+			<label>
+				Foreground Color
+				<input name="foregroundColor" type="text">
+			</label>
+			<button type="button" name="cancel">Cancel</button>
+			<button type="button" name="save">Save</button>
+		</form>
+		<script>
+			var APPKEY_BACKGROUND_COLOR = 0;
+			var APPKEY_FOREGROUND_COLOR = 1;
+			
+			var form = document.forms[ 0 ];
+			
+			function padHex( num ) {
+				return ( "000000" + num.toString( 16 ) ).slice( -6 ).toUpperCase();
+			}
+			
+			(function() {
+				// Apply preconfigured values
+				var options;
+				var optionsString = decodeURIComponent( location.search.substring( 1 ) );
+				
+				try {
+					options = JSON.parse( optionsString );
+				}
+				catch( e ) {
+					options = {};
+					options[ APPKEY_BACKGROUND_COLOR ] = 0x000000;
+					options[ APPKEY_FOREGROUND_COLOR ] = 0xFFFFFF;
+				}
+				
+				form.backgroundColor.value = padHex( options[ APPKEY_BACKGROUND_COLOR ] );
+				form.foregroundColor.value = padHex( options[ APPKEY_FOREGROUND_COLOR ] );
+			})();
+			
+			form.save.addEventListener( "click", function( e ) {
+				// Make a data object to be sent, coercing value types to integers
+				var options = {};
+				options[ APPKEY_BACKGROUND_COLOR ] = parseInt( form.backgroundColor.value, 16 );
+				options[ APPKEY_FOREGROUND_COLOR ] = parseInt( form.foregroundColor.value, 16 );
+				
+				// Encode and send the data when the page closes
+				document.location = "pebblejs://close#" + encodeURIComponent( JSON.stringify( options ) );
+			}, false );
+			
+			form.cancel.addEventListener( "click", function( e ) {
+				document.location = "pebblejs://close";
+			}, false );
+		</script>
+	</body>
+</html>

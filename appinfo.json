@@ -1,8 +1,12 @@
 {
     "appKeys": {},
     "capabilities": [
-        ""
+        "configurable"
     ],
+    "appKeys": {
+        "BackgroundColor": 0,
+        "ForegroundColor": 1
+    },
     "companyName": "tsbehlman@icloud.com",
     "enableMultiJS": true,
     "longName": "Condensed",
@@ -23,6 +27,7 @@
     ],
     "uuid": "1fd5eb0d-1e4e-495d-a954-ed9618a1555c",
     "versionLabel": "1.0",
+    "versionCode": 1,
     "watchapp": {
         "watchface": true
     }
