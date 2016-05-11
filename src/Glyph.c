@@ -79,6 +79,15 @@ GlyphLayer* GlyphLayer_create( GlyphFont* font, GPoint startPosition, uint8_t st
 	return layer;
 }
 
+void GlyphLayer_reset( GlyphLayer* layer ) {
+	char* textPointer = layer->text;
+	
+	while( *textPointer != '\0' ) {
+		*textPointer = '\0';
+		textPointer++;
+	}
+}
+
 void GlyphLayer_destroy( GlyphLayer* layer ) {
 	free( layer->text );
 	free( layer );

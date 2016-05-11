@@ -52,6 +52,8 @@ void GlyphFont_drawCharacter( GlyphFont* font, char codePoint, GBitmap* frameBuf
 
 GlyphLayer* GlyphLayer_create( GlyphFont* font, GPoint startPosition, uint8_t stringLength, DrawProc drawBackground );
 
+void GlyphLayer_reset( GlyphLayer* layer );
+
 void GlyphLayer_destroy( GlyphLayer* layer );
 
 void GlyphLayer_draw( GlyphLayer* layer, GBitmap* frameBuffer, String text );
