@@ -76,8 +76,12 @@
 				<input name="backgroundColor" type="text" class="colorpicker">
 			</label>
 			<label>
-				Foreground Color
-				<input name="foregroundColor" type="text" class="colorpicker">
+				Time Color
+				<input name="timeColor" type="text" class="colorpicker">
+			</label>
+			<label>
+				Battery Ring Color
+				<input name="batteryRingColor" type="text" class="colorpicker">
 			</label>
 			<div class="row">
 				<button type="button" name="cancel">Cancel</button>
@@ -205,7 +209,6 @@
 					context.putImageData( imageData, 0, 0 );
 					
 					addClick( canvas, function( e ) {
-						console.log(e);
 						var rect = canvas.getBoundingClientRect();
 						var x = ( e.clientX - rect.left << 3 ) / rect.width  >>> 0;
 						var y = ( e.clientY - rect.top  << 3 ) / rect.height >>> 0;
@@ -224,12 +227,14 @@
 			})();
 			
 			var APPKEY_BACKGROUND_COLOR = 0;
-			var APPKEY_FOREGROUND_COLOR = 1;
+			var APPKEY_TIME_COLOR = 1;
+			var APPKEY_BATTERY_RING_COLOR = 2;
 			
 			var form = document.forms[ 0 ];
 			
 			var bgColorPicker;
-			var fgColorPicker;
+			var timeColorPicker;
+			var batteryRingColorPicker;
 			
 			function ARGB8toRGB32channel( channel ) {
 				return ( channel << 6 ) | ( channel << 4 ) | ( channel << 2 ) | channel;
@@ -253,18 +258,21 @@
 				catch( e ) {
 					options = {};
 					options[ APPKEY_BACKGROUND_COLOR ] = 0b11000000;
-					options[ APPKEY_FOREGROUND_COLOR ] = 0b11111111;
+					options[ APPKEY_TIME_COLOR ] = 0b11111111;
+					options[ APPKEY_BATTERY_RING_COLOR ] = 0b11111111;
 				}
 				
 				bgColorPicker = new ColorPicker( form.backgroundColor, ARGB8toRGB32( options[ APPKEY_BACKGROUND_COLOR ] ) );
-				fgColorPicker = new ColorPicker( form.foregroundColor, ARGB8toRGB32( options[ APPKEY_FOREGROUND_COLOR ] ) );
+				timeColorPicker = new ColorPicker( form.timeColor, ARGB8toRGB32( options[ APPKEY_TIME_COLOR ] ) );
+				batteryRingColorPicker = new ColorPicker( form.batteryRingColor, ARGB8toRGB32( options[ APPKEY_BATTERY_RING_COLOR ] ) );
 			})();
 			
 			form.save.addEventListener( "click", function( e ) {
 				// Make a data object to be sent, coercing value types to integers
 				var options = {};
 				options[ APPKEY_BACKGROUND_COLOR ] = RGB64toARGB8( bgColorPicker.color );
-				options[ APPKEY_FOREGROUND_COLOR ] = RGB64toARGB8( fgColorPicker.color );
+				options[ APPKEY_TIME_COLOR ] = RGB64toARGB8( timeColorPicker.color );
+				options[ APPKEY_BATTERY_RING_COLOR ] = RGB64toARGB8( batteryRingColorPicker.color );
 				
 				// Encode and send the data when the page closes
 				document.location = "pebblejs://close#" + encodeURIComponent( JSON.stringify( options ) );

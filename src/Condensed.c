@@ -10,7 +10,8 @@
 
 typedef struct {
 	GColor backgroundColor;
-	GColor foregroundColor;
+	GColor timeColor;
+	GColor batteryRingColor;
 } Settings;
 
 static Window *window;
@@ -26,7 +27,8 @@ static Settings settings;
 
 #define SETTINGS_KEY 3
 #define APPKEY_BACKGROUND_COLOR 0
-#define APPKEY_FOREGROUND_COLOR 1
+#define APPKEY_TIME_COLOR 1
+#define APPKEY_BATTERY_RING_COLOR 2
 
 #define GCOLOR_FROM_ARGB8(argbValue) ( (GColor) { .argb = argbValue } )
 #define SCREEN_RECT ((GRect) { (GPoint) { 0, 0 }, (GSize) { 180, 180 } })
@@ -99,7 +101,7 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	}
 	else if( batteryAngle > drawnBatteryAngle ) {
 		// Battery has charged, add a segment to the ring
-		graphics_context_set_fill_color( context, settings.foregroundColor );
+		graphics_context_set_fill_color( context, settings.batteryRingColor );
 		graphics_fill_radial( context, SCREEN_RECT, GOvalScaleModeFitCircle, BATTERY_RING_THICKNESS, drawnBatteryAngle, batteryAngle );
 		drawnBatteryAngle = batteryAngle;
 		
@@ -186,11 +188,20 @@ static void inbox_received_handler( DictionaryIterator* iter, void* context ) {
 		case APPKEY_BACKGROUND_COLOR:
 			settings.backgroundColor = GCOLOR_FROM_ARGB8( tuple->value->int32 );
 			#ifdef PROFILE
-				APP_LOG(APP_LOG_LEVEL_INFO, "Received a bg color %d", settings.backgroundColor.argb);
+				APP_LOG(APP_LOG_LEVEL_INFO, "Received a background color %d", settings.backgroundColor.argb);
 			#endif
 			break;
-		case APPKEY_FOREGROUND_COLOR:
-			settings.foregroundColor = GCOLOR_FROM_ARGB8( tuple->value->int32 );
+		case APPKEY_TIME_COLOR:
+			settings.timeColor = GCOLOR_FROM_ARGB8( tuple->value->int32 );
+			#ifdef PROFILE
+				APP_LOG(APP_LOG_LEVEL_INFO, "Received a time color %d", settings.timeColor.argb);
+			#endif
+			break;
+		case APPKEY_BATTERY_RING_COLOR:
+			settings.batteryRingColor = GCOLOR_FROM_ARGB8( tuple->value->int32 );
+			#ifdef PROFILE
+				APP_LOG(APP_LOG_LEVEL_INFO, "Received a battery ring color %d", settings.batteryRingColor.argb);
+			#endif
 			break;
 		default:
 			#ifdef PROFILE
@@ -205,7 +216,7 @@ static void inbox_received_handler( DictionaryIterator* iter, void* context ) {
 	persist_write_data( SETTINGS_KEY, &settings, sizeof(Settings) );
 	
 	// Apply the color change elsewhere as necessary
-	univers.color = settings.foregroundColor;
+	univers.color = settings.timeColor;
 	
 	// Redraw the entire watch face
 	firstRender = true;
@@ -228,7 +239,8 @@ static void init() {
 	else {
 		settings = (Settings) {
 			.backgroundColor = GColorBlack,
-			.foregroundColor = GColorWhite
+			.timeColor = GColorWhite,
+			.batteryRingColor = GColorWhite
 		};
 	}
 	
@@ -244,7 +256,7 @@ static void init() {
 		.glyphSet = universGlyphs,
 		.scale = 1,
 		.letterSpacing = 5,
-		.color = settings.foregroundColor,
+		.color = settings.timeColor,
 		.glyphForCharacter = asciiToGlyphIndex
 	};
 	

@@ -5,7 +5,8 @@
     ],
     "appKeys": {
         "BackgroundColor": 0,
-        "ForegroundColor": 1
+        "TimeColor": 1,
+        "BatteryRingColor": 2
     },
     "companyName": "tsbehlman@icloud.com",
     "longName": "Condensed",
