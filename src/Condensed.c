@@ -28,6 +28,7 @@ static Settings settings;
 #define APPKEY_BACKGROUND_COLOR 0
 #define APPKEY_FOREGROUND_COLOR 1
 
+#define GCOLOR_FROM_ARGB8(argbValue) ( (GColor) { .argb = argbValue } )
 #define SCREEN_RECT ((GRect) { (GPoint) { 0, 0 }, (GSize) { 180, 180 } })
 
 #define BATTERY_RING_THICKNESS 8
@@ -183,13 +184,13 @@ static void inbox_received_handler( DictionaryIterator* iter, void* context ) {
 	while( tuple != NULL ) {
 		switch( tuple->key ) {
 		case APPKEY_BACKGROUND_COLOR:
-			settings.backgroundColor = GColorFromHEX( tuple->value->int32 );
+			settings.backgroundColor = GCOLOR_FROM_ARGB8( tuple->value->int32 );
 			#ifdef PROFILE
 				APP_LOG(APP_LOG_LEVEL_INFO, "Received a bg color %d", settings.backgroundColor.argb);
 			#endif
 			break;
 		case APPKEY_FOREGROUND_COLOR:
-			settings.foregroundColor = GColorFromHEX( tuple->value->int32 );
+			settings.foregroundColor = GCOLOR_FROM_ARGB8( tuple->value->int32 );
 			break;
 		default:
 			#ifdef PROFILE
