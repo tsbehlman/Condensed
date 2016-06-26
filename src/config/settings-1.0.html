@@ -61,6 +61,7 @@
 			}
 			#colorpicker-canvas {
 				width: 100%;
+				image-rendering: -webkit-optimize-contrast;
 				image-rendering: -webkit-crisp-edges;
 				image-rendering: crisp-edges;
 				image-rendering: pixelated;
@@ -114,7 +115,7 @@
 				}
 				
 				window.addClick = function( element, callback ) {
-					if( 'ontouchstart' in window ) {
+					if( "ontouchstart" in window ) {
 						element.addEventListener( "touchstart", function( e ) {
 							_onTouchStart( e, callback );
 						}, false );
@@ -240,11 +241,11 @@
 				return ( channel << 6 ) | ( channel << 4 ) | ( channel << 2 ) | channel;
 			}
 			function ARGB8toRGB32( color ) {
-				return ( ARGB8toRGB32channel( ( color & 0b000011 ) >>> 0 ) << 0 ) | ( ARGB8toRGB32channel( ( color & 0b001100 ) >>> 2 ) << 8 ) | ( ARGB8toRGB32channel( ( color & 0b110000 ) >>> 4 ) << 16 )
+				return ( ARGB8toRGB32channel( ( color & 0x03 ) >>> 0 ) << 0 ) | ( ARGB8toRGB32channel( ( color & 0x0C ) >>> 2 ) << 8 ) | ( ARGB8toRGB32channel( ( color & 0x30 ) >>> 4 ) << 16 )
 			}
 			
 			function RGB64toARGB8( color ) {
-				return 0b11000000 | ( ( color >>> 12 ) & 0b110000 ) | ( ( color >>> 6 ) & 0b001100 ) | ( color & 0b000011 );
+				return 0xC0 | ( ( color >>> 12 ) & 0x30 ) | ( ( color >>> 6 ) & 0x0C ) | ( color & 0x03 );
 			}
 			
 			(function() {
@@ -256,10 +257,14 @@
 					options = JSON.parse( optionsString );
 				}
 				catch( e ) {
+					options = null;
+				}
+				
+				if( options === null ) {
 					options = {};
-					options[ APPKEY_BACKGROUND_COLOR ] = 0b11000000;
-					options[ APPKEY_TIME_COLOR ] = 0b11111111;
-					options[ APPKEY_BATTERY_RING_COLOR ] = 0b11111111;
+					options[ APPKEY_BACKGROUND_COLOR ] = 0xC0; // 0b11000000
+					options[ APPKEY_TIME_COLOR ] = 0xFF; // 0b11111111
+					options[ APPKEY_BATTERY_RING_COLOR ] = 0xFF; // 0b11111111
 				}
 				
 				bgColorPicker = new ColorPicker( form.backgroundColor, ARGB8toRGB32( options[ APPKEY_BACKGROUND_COLOR ] ) );
