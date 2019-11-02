@@ -56,6 +56,10 @@ static void drawBackground( GBitmap* frameBuffer, GRect area ) {
 	}
 }
 
+static void setBattery( BatteryChargeState chargeState ) {
+	batteryAngle = TRIG_MAX_ANGLE * chargeState.charge_percent / 100;
+}
+
 static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	#ifdef PROFILE
 		time_t temp = time( NULL );
@@ -87,6 +91,9 @@ static void redrawWindowLayer( Layer *layer, GContext *context ) {
 	
 	// Release the framebuffer
 	graphics_release_frame_buffer( context, frameBuffer );
+	
+	// Update battery charge
+	setBattery( battery_state_service_peek() );
 	
 	// Update the battery ring if necessary
 	if( batteryAngle < drawnBatteryAngle ) {
@@ -151,20 +158,6 @@ static void tickHandler( Time* timeValue, TimeUnits unitsChanged ) {
 	
 	// Trigger layer_update_proc
 	layer_mark_dirty( windowLayer );
-}
-
-static void setBattery( BatteryChargeState chargeState ) {
-	batteryAngle = TRIG_MAX_ANGLE * chargeState.charge_percent / 100;
-}
-
-static void batteryHandler( BatteryChargeState chargeState ) {
-	setBattery( chargeState );
-	
-	// The battery event seems to fire once per minute regardless of whether there is a battery state change
-	if( batteryAngle != drawnBatteryAngle ) {
-		// Trigger layer_update_proc
-		layer_mark_dirty( windowLayer );
-	}
 }
 
 static uint8_t asciiToGlyphIndex( char codePoint ) {
@@ -276,7 +269,6 @@ static void init() {
 	
 	// Subscribe to services
 	tick_timer_service_subscribe( MINUTE_UNIT, tickHandler );
-	battery_state_service_subscribe( batteryHandler );
 	
 	app_message_register_inbox_received( inbox_received_handler );
 	app_message_open( dict_calc_buffer_size( 2, sizeof( uint32_t ), sizeof( uint32_t ) ), 0 );
@@ -285,7 +277,6 @@ static void init() {
 static void deinit() {
 	// Unsubscribe from services
 	tick_timer_service_unsubscribe();
-	battery_state_service_unsubscribe();
 	
 	// Free memory
 	window_destroy( window );
